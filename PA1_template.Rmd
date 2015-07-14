@@ -1,25 +1,90 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+output: html_document
 ---
-
+Title: "Reproducible Research: Peer Assessment 1"
+==================================================================
 
 ## Loading and preprocessing the data
-
-
-
-## What is mean total number of steps taken per day?
-
-
+The data are loaded here, please put the "activity.csv" in your working directory
+```{r YangCode1, echo=TRUE, results='asis'}
+library(ggplot2)
+library(lubridate)
+activity <- read.table("activity.csv", head=T, sep=",", stringsAsFactors=F)
+```
+## What is mean total number of steps taken per day
+```{r meanCalculation, echo=TRUE}
+total_day <- tapply (activity$steps, activity$date, sum)
+mean_totoal_day <- mean (total_day, na.rm=T)
+median_total_day <- median(total_day, na.rm=T)
+```
+The mean total number of steps taken per day is `r mean_totoal_day`, median is `r median_total_day`.
+The histogram of total steps per day
+```{r}
+hist(total_day)
+```
 
 ## What is the average daily activity pattern?
-
-
+```{r average, results='hide'}
+summary.steps_1<-aggregate(activity$steps, list(activity$interval), na.rm=T, mean)
+summary.steps <- data.frame(mean.steps=summary.steps_1[,2], uni.interval=summary.steps_1[,1])
+ggplot(summary.steps, aes(y=mean.steps, x=uni.interval))+geom_line()
+```
+Calculate the interval which contains the maximal average of steps
+```{r}
+max_steps <- max (summary.steps[,1])
+index=which(summary.steps[,1]==max_steps)
+max <- summary.steps[index,2]
+```
+The interval containing maximal steps is 'r max'.
 
 ## Imputing missing values
-
-
-
+The missing values were filled in with average of the corresponding interval of every day 
+```{r fill in missing value}
+activity_new <- activity
+for (i in 1:length(activity_new$steps)){
+    if (is.na(activity_new[i,1])){
+        activity_new[i,1] <- summary.steps_1[which(summary.steps_1[,1]==activity_new[i,3]),2]
+    }    
+}
+```
 ## Are there differences in activity patterns between weekdays and weekends?
+Convert time variable
+```{r}
+activity_new[,4] <- ymd(activity_new[,2])
+names(activity_new)[4] <- "data.time"
+activity_new[,5] <- character(0)
+names(activity_new)[5] <- "weekdays"
+```
+Add new column "weekday"
+```{r}
+for (i in 1:length(activity_new$data.time)){
+    if (weekdays(activity_new[i,4]) %in% c("Saturday", "Sunday")){
+        activity_new[i,5] <- "weekend"
+    }
+    else {
+        activity_new[i,5] <- "weekday" 
+    }
+}
+```
+Calculate activity pattern in weekday and weekends separately
+```{r}
+summary.steps_weekday<-aggregate(activity_new[activity_new[,5]=="weekday",]$steps, list(activity_new[activity_new[,5]=="weekday",]$interval), na.rm=T, mean)
+summary.steps_weekday[,3] <- "weekday"
+str(summary.steps_weekday)
+summary.steps_weekend<-aggregate(activity_new[activity_new[,5]=="weekend",]$steps, list(activity_new[activity_new[,5]=="weekend",]$interval), na.rm=T, mean)
+summary.steps_weekend[,3] <- "weekend"
+str(summary.steps_weekend)
+summary.steps_combined <- rbind (summary.steps_weekday,summary.steps_weekend)
+
+summary.steps_weekday_weekend <- data.frame(mean.steps=summary.steps_combined[,2], interval=summary.steps_combined[,1], day=summary.steps_combined[,3])
+```
+Plot the result with ggplot2
+```{r}
+ggplot(summary.steps_weekday_weekend, aes(y=mean.steps, x=interval))+geom_line()+facet_grid(day~.)
+```
+
+Based on the plot, the activity patterns are different between workdays and weekends. 
+
+
+
+
